@@ -15,3 +15,4 @@ async def hello():
 async def get_database_status():
     version = await fetch_database_version()
     return {"version": version}
+
