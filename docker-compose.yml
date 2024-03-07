@@ -8,5 +8,9 @@ services:
     environment:
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "Ahoj123"
+<<<<<<< HEAD
       POSTGRES_DB: "DBS_STU"
+=======
+      POSTGRES_DB: superuser
+>>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
 
