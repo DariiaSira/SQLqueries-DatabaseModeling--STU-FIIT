@@ -1,11 +1,5 @@
 from fastapi import APIRouter, HTTPException
-<<<<<<< HEAD
 import psycopg2
-=======
-from typing import List
-import psycopg2
-import json
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
 from dbs_assignment.database_url import DATABASE_URL
 
 
@@ -15,20 +9,12 @@ router = APIRouter()
 conn = psycopg2.connect(DATABASE_URL)
 
 
-<<<<<<< HEAD
 # Function to retrieve users who commented on a specific post
-=======
-# Define a function to retrieve users who commented on a specific post
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
 @router.get("/v2/tags/{tagname}/stats", response_model=dict)
 async def get_tag_stats(tagname: str):
     try:
         cur = conn.cursor() # is used to execute SQL queries on the database.
 
-<<<<<<< HEAD
-=======
-        print(tagname)
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         sql_query = """
         SELECT DISTINCT EXTRACT(dow FROM p.creationdate) AS day_of_week,
             COUNT(DISTINCT p.id) AS total_posts,
@@ -56,15 +42,8 @@ async def get_tag_stats(tagname: str):
                 percentage = round((tag_posts / total_posts) * 100, 2)
             tag_stats[day_of_week] = percentage
 
-<<<<<<< HEAD
         cur.close()
 
-=======
-        # Close communication with the PostgreSQL database
-        cur.close()
-
-        # Format the results according to the provided JSON schema
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         result = {
             "monday": tag_stats.get(1, 0.0),
             "tuesday": tag_stats.get(2, 0.0),
@@ -74,20 +53,8 @@ async def get_tag_stats(tagname: str):
             "saturday": tag_stats.get(6, 0.0),
             "sunday": tag_stats.get(0, 0.0)
         }
-<<<<<<< HEAD
         return {"result": result}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-=======
-
-        # Return the JSON response
-        return {"result": result}
-
-    except Exception as e:
-        # Handle exceptions, e.g., database connection error
-        raise HTTPException(status_code=500, detail=str(e))
-
-# TODO another values. wtf?
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f

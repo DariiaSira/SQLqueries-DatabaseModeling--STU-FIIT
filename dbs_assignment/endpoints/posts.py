@@ -1,12 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 import psycopg2
-<<<<<<< HEAD
 from datetime import datetime, timedelta, timezone
-=======
-import json
-from datetime import datetime, timedelta
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
 from dbs_assignment.database_url import DATABASE_URL
 
 
@@ -16,20 +11,11 @@ router = APIRouter()
 conn = psycopg2.connect(DATABASE_URL)
 
 
-<<<<<<< HEAD
 # Function to retrieve users who commented on a specific post
 @router.get("/v2/posts/{post_id}/users", response_model=dict)
 async def get_post_users(post_id: int):
     try:
         cur = conn.cursor() # Is used to execute SQL queries on the database.
-=======
-# Define a function to retrieve users who commented on a specific post
-@router.get("/v2/posts/{post_id}/users", response_model=List[dict])
-async def get_post_users(post_id: int):
-    try:
-        # Create a cursor object using the cursor() method
-        cur = conn.cursor() # is used to execute SQL queries on the database.
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
 
         # Define the SQL query to retrieve users who commented on the specified post
         sql_query = """
@@ -51,15 +37,9 @@ async def get_post_users(post_id: int):
             user = {
                 "id": row[0],
                 "reputation": row[1],
-<<<<<<< HEAD
                 "creationdate": row[2].astimezone(timezone.utc).isoformat(),
                 "displayname": row[3],
                 "lastaccessdate": row[4].astimezone(timezone.utc).isoformat(),
-=======
-                "creationdate": row[2].isoformat(),
-                "displayname": row[3],
-                "lastaccessdate": row[4].isoformat(),
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
                 "websiteurl": row[5],
                 "location": row[6],
                 "aboutme": row[7],
@@ -76,7 +56,6 @@ async def get_post_users(post_id: int):
         cur.close()
 
         # Return the JSON response
-<<<<<<< HEAD
         return {"items": users_json}
 
     except Exception as e:
@@ -84,27 +63,12 @@ async def get_post_users(post_id: int):
 
 # Function to retrieve the most recent resolved posts with a duration less than or equal to the specified duration
 @router.get("/v2/posts", response_model=dict)
-=======
-        return users_json
-
-    except Exception as e:
-        # Handle exceptions, e.g., database connection error
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Define a function to retrieve the most recent resolved posts with a duration less than or equal to the specified duration
-@router.get("/v2/posts/", response_model=dict)
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
 async def get_recent_resolved_posts(duration: int, limit: int):
     try:
         # Calculate the datetime duration ago from the current time
         duration_ago = datetime.now() - timedelta(minutes=duration)
         print(duration_ago, datetime.now(), timedelta(minutes=duration))
 
-<<<<<<< HEAD
-=======
-        # Create a cursor object using the cursor() method
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         cur = conn.cursor()
 
         # Define the SQL query to retrieve recent resolved posts with a duration less than or equal to the specified duration
@@ -117,24 +81,12 @@ async def get_recent_resolved_posts(duration: int, limit: int):
             ORDER BY closeddate DESC
             LIMIT %s
         """
-<<<<<<< HEAD
         cur.execute(sql_query, (duration, limit))
         rows = cur.fetchall()
-=======
-
-        # Execute the SQL query
-        cur.execute(sql_query, (duration, limit))
-
-        # Fetch all the rows from the query result
-        rows = cur.fetchall()
-
-        # Convert the fetched data to JSON format
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         posts_json = []
         for row in rows:
             post = {
                 "id": row[0],
-<<<<<<< HEAD
                  "creationdate": row[1].astimezone(timezone.utc).isoformat(),
                 "viewcount": row[2],
                 "lasteditdate": row[3].astimezone(timezone.utc).isoformat() if row[3] else None,
@@ -157,34 +109,6 @@ async def get_recent_resolved_posts(duration: int, limit: int):
 @router.get("/v2/posts", response_model=dict)
 async def get_posts(limit: int, query: str):
     try:
-=======
-                "creationdate": row[1].isoformat(),
-                "viewcount": row[2],
-                "lasteditdate": row[3].isoformat() if row[3] else None,
-                "lastactivitydate": row[4].isoformat(),
-                "title": row[5],
-                "closeddate": row[6].isoformat(),
-                "duration": float(row[7])
-            }
-            posts_json.append(post)
-
-        # Close communication with the PostgreSQL database
-        cur.close()
-
-        # Return the JSON response
-        return {"items": posts_json}
-
-    except Exception as e:
-        # Handle exceptions, e.g., database connection error
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Define a function to retrieve posts based on query parameters
-@router.get("/v2/posts", response_model=dict)
-async def get_posts(limit: int, query: str):
-    try:
-        # Create a cursor object using the cursor() method
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         cur = conn.cursor()
 
         # Define the SQL query to retrieve posts sorted by creation date and filtered by the query string
@@ -204,23 +128,12 @@ async def get_posts(limit: int, query: str):
             LIMIT %s
         """
 
-<<<<<<< HEAD
         cur.execute(sql_query, (f"%{query}%", f"%{query}%", query, limit))
         rows = cur.fetchall()
-=======
-        # Execute the SQL query
-        cur.execute(sql_query, (f"%{query}%", f"%{query}%", query, limit))
-
-        # Fetch all the rows from the query result
-        rows = cur.fetchall()
-
-        # Convert the fetched data to JSON format
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         posts_json = []
         for row in rows:
             post = {
                 "id": row[0],
-<<<<<<< HEAD
                 "creationdate": row[1].astimezone(timezone.utc).isoformat(),
                 "viewcount": row[2],
                 "lasteditdate": row[3].astimezone(timezone.utc).isoformat() if row[3] else None,
@@ -236,28 +149,6 @@ async def get_posts(limit: int, query: str):
         return {"items": posts_json}
 
     except Exception as e:
-=======
-                "creationdate": row[1].isoformat(),
-                "viewcount": row[2],
-                "lasteditdate": row[3].isoformat() if row[3] else None,
-                "lastactivitydate": row[4].isoformat(),
-                "title": row[5],
-                "body": row[6],
-                "answercount": row[7],
-                "closeddate": row[8].isoformat() if row[8] else None,
-                "tags": row[9]
-            }
-            posts_json.append(post)
-
-        # Close communication with the PostgreSQL database
-        cur.close()
-
-        # Return the JSON response
-        return {"items": posts_json}
-
-    except Exception as e:
-        # Handle exceptions, e.g., database connection error
->>>>>>> 54a15d95302702076fb6a8c89f1fc0a36ba9e21f
         raise HTTPException(status_code=500, detail=str(e))
 
 
