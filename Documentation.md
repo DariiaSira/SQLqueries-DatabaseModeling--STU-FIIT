@@ -224,7 +224,8 @@ FROM posts p
 JOIN post_tags pt ON p.id = pt.post_id
 JOIN tags t ON pt.tag_id = t.id
 WHERE LOWER(p.title) LIKE LOWER({query}) OR LOWER(p.body) LIKE LOWER({query})
-GROUP BY p.id
+GROUP BY p.id, p.creationdate, p.viewcount, p.lasteditdate, p.lastactivitydate,
+    p.title, p.body, p.answercount, p.closeddate
 ORDER BY p.creationdate DESC
 LIMIT {limit}
 ```

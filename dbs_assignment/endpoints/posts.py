@@ -105,7 +105,8 @@ async def get_posts(limit: int, duration: int = None, query: str = None):
                 FULL JOIN post_tags pt ON p.id = pt.post_id
                 FULL JOIN tags t ON pt.tag_id = t.id
                 WHERE LOWER(p.title) LIKE LOWER(%s) OR LOWER(p.body) LIKE LOWER(%s)
-                GROUP BY p.id
+                GROUP BY p.id, p.creationdate, p.viewcount, p.lasteditdate, p.lastactivitydate,
+                    p.title, p.body, p.answercount, p.closeddate
                 ORDER BY p.creationdate DESC
                 LIMIT %s
             """
