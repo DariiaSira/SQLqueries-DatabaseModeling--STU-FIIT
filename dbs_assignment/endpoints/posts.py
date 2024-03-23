@@ -9,7 +9,6 @@ router = APIRouter()
 # Creates a new database connection based on the provided URL.
 conn = psycopg2.connect(DATABASE_URL)
 
-
 # Function to retrieve users who commented on a specific post
 @router.get("/v2/posts/{post_id}/users", response_model=dict)
 async def get_post_users(post_id: int):
@@ -18,10 +17,10 @@ async def get_post_users(post_id: int):
 
         # Define the SQL query to retrieve users who commented on the specified post
         sql_query = """
-            SELECT u.* FROM users u
+            (SELECT u.* FROM users u
             JOIN comments c ON u.id = c.userid
             WHERE c.postid = %s
-            ORDER BY c.creationdate DESC
+            ORDER BY c.creationdate DESC)
         """
 
         # Execute the SQL query
@@ -62,6 +61,7 @@ async def get_post_users(post_id: int):
 
 @router.get("/v2/posts", response_model=dict)
 async def get_posts(limit: int, duration: int = None, query: str = None):
+    global posts_json
     try:
         cur = conn.cursor()
         if duration is not None:
@@ -71,13 +71,13 @@ async def get_posts(limit: int, duration: int = None, query: str = None):
 
             # Define the SQL query to retrieve recent resolved posts with a duration less than or equal to the specified duration
             sql_query = """
-                SELECT id, creationdate, viewcount, lasteditdate, lastactivitydate, title, closeddate,
+                (SELECT id, creationdate, viewcount, lasteditdate, lastactivitydate, title, closeddate,
                     ROUND(EXTRACT(EPOCH FROM (closeddate - creationdate))/60, 2) AS duration
                     FROM posts
                 WHERE closeddate IS NOT NULL
                 AND CAST(ROUND(EXTRACT(EPOCH FROM (closeddate - creationdate))/60, 2) AS numeric) <= %s
                 ORDER BY closeddate DESC
-                LIMIT %s
+                LIMIT %s)
             """
             cur.execute(sql_query, (duration, limit))
             rows = cur.fetchall()
@@ -98,17 +98,17 @@ async def get_posts(limit: int, duration: int = None, query: str = None):
         elif query is not None:
             # Define the SQL query to retrieve posts sorted by creation date and filtered by the query string
             sql_query = """
-                SELECT p.id, p.creationdate, p.viewcount, p.lasteditdate, p.lastactivitydate,
+                (SELECT p.id, p.creationdate, p.viewcount, p.lasteditdate, p.lastactivitydate,
                     p.title, p.body, p.answercount, p.closeddate,
                     ARRAY_AGG(t.tagname) AS tags
                     FROM posts p
                 FULL JOIN post_tags pt ON p.id = pt.post_id
                 FULL JOIN tags t ON pt.tag_id = t.id
-                WHERE LOWER(p.title) LIKE LOWER(%s) OR LOWER(p.body) LIKE LOWER(%s)
+                WHERE p.title ILIKE unaccent(%s) OR p.body ILIKE (%s)
                 GROUP BY p.id, p.creationdate, p.viewcount, p.lasteditdate, p.lastactivitydate,
                     p.title, p.body, p.answercount, p.closeddate
                 ORDER BY p.creationdate DESC
-                LIMIT %s
+                LIMIT %s)
             """
 
             cur.execute(sql_query, (f"%{query}%", f"%{query}%", limit))
@@ -135,3 +135,34 @@ async def get_posts(limit: int, duration: int = None, query: str = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/v3/posts/{post_id}", response_model=dict)
+async def get_post_list(post_id: int, limit: int):
+    try:
+        cur = conn.cursor()
+        sql_query = """
+            (
+            SELECT users.displayname,
+                    posts.body,
+                    posts.creationdate
+            FROM posts
+            JOIN users ON posts.owneruserid = users.id
+            WHERE posts.parentid = %s OR posts.id = %s
+            LIMIT %s
+            )
+        """
+
+        cur.execute(sql_query, (post_id, post_id, limit))
+        rows = cur.fetchall()
+        posts_json = []
+        for row in rows:
+            json = {
+                "displayname": row[0],
+                "body": row[1],
+                "created_at": row[2].astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+00',
+            }
+            posts_json.append(json)
+        cur.close()
+        return {"items": posts_json}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
