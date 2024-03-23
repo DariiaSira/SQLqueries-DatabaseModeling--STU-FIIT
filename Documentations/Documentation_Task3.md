@@ -31,7 +31,7 @@ WHERE badges.userid = 120)
 
 ORDER BY date
 ```
-![img_1.png](img_1.png)
+![img_1.png](images/img_1.png)
 
 2. The table **ordered** selects all info fro sub table **general** and also utilizes the LAG and LEAD window functions to get the type of the previous and next rows to filter the last post for every badge.
 This is used later in the WHERE clause to filter the rows based on the types of adjacent rows.
@@ -41,7 +41,7 @@ SELECT *,
             LEAD(type) OVER (ORDER BY date) AS next_type
     FROM (general)
 ```
-![img_2.png](img_2.png)
+![img_2.png](images/img_2.png)
 
 3. The last finished query selects needed info and set position for every pair of posts and badge.
 The CASE statement calculates the position based on the type of the current row and the previous row. If the current row is of type 'post', it assigns a position equal to half the row number plus one. If the previous row was of type 'post', it assigns a position equal to half the row number. This is an interesting way to assign positions of posts and badges in a sequence order.
@@ -53,7 +53,7 @@ SELECT id, title, type, date,
 FROM (ordered)
 WHERE (type = 'post' AND next_type = 'badge') OR (type = 'badge' AND prev_type = 'post');
 ```
-![img_3.png](img_3.png)
+![img_3.png](images/img_3.png)
 
 **SQL Request:**
 ```
@@ -137,7 +137,7 @@ JOIN (SELECT postid, COUNT(*) AS total_comments
         GROUP BY postid
         HAVING COUNT(*) > 40) sub_table_limited ON difference_table.postid = sub_table_limited.postid
 ```
-![img_5.png](img_5.png)
+![img_5.png](images/img_5.png)
 
 2. Main query for calculating the time difference. This query retrieves details about comments on posts tagged and calculates the time difference between consecutive comments for each post.  The results are ordered by post ID and comment creation date.
 ```
@@ -156,7 +156,7 @@ SELECT comments.postid,
         WHERE posts.parentid IS NULL AND tags.tagname = 'networking'
         ORDER BY comments.postid, comments.creationdate
 ```
-![img_6.png](img_6.png)
+![img_6.png](images/img_6.png)
 3. The outermost SELECT statement selects all columns from the difference_table subquery and calculates the average time difference over each partition of posts. The AVG window function is used with the OVER clause to calculate the average time difference over each partition, which is partitioned by postid and ordered by the creation date of the comments.
 See code in main SQL Request and example of output in HTTP call example:
 
