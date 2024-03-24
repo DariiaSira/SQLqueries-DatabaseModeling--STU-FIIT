@@ -75,7 +75,7 @@ async def get_user_badge_history(user_id: int):
                     LEAD(type) OVER (ORDER BY date) AS next_type
             FROM (
                     (SELECT DISTINCT posts.id,
-                            posts.title,
+                            posts.title AS title,
                             'post' AS type,
                             posts.creationdate AS date
                     FROM posts
@@ -83,12 +83,12 @@ async def get_user_badge_history(user_id: int):
                     WHERE users.id = 120)
                     UNION ALL
                     (SELECT DISTINCT badges.id,
-                            badges.name,
+                            badges.name AS title,
                             'badge' AS type,
                             badges.date AS date
                     FROM badges
                     WHERE badges.userid = 120)
-                    ORDER BY date) AS general) AS ordered
+                    ORDER BY date, title) AS general) AS ordered
         WHERE (type = 'post' AND next_type = 'badge') OR (type = 'badge' AND prev_type = 'post')
         )
         """

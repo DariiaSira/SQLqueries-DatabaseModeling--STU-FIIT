@@ -60,88 +60,101 @@ async def get_tag_stats(tagname: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/v3/tags/{tagname}/comments/", response_model=dict)
-async def get_posts(tagname: str, count: int = None, limit: int = None, position: int = None):
-    global tags_comments
+async def get_tags_count(tagname: str, count: int = None):
     try:
         cur = conn.cursor()
-        if count is not None:
-            sql_query = """
-            (
-            SELECT *,
-                AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate) AS avg
-            FROM
-                (SELECT comments.postid,
-                        posts.title,
-                        users.displayname,
-                        comments.text,
-                        posts.creationdate AS post_created_at,
-                        comments.creationdate,
-                        EXTRACT(EPOCH FROM (comments.creationdate - LAG(comments.creationdate) OVER (PARTITION BY comments.postid ORDER BY comments.creationdate))) AS time_difference
-                    FROM comments
-                    JOIN posts ON comments.postid = posts.id
-                    FULL JOIN users ON comments.userid = users.id
-                    JOIN post_tags ON comments.postid = post_tags.post_id
-                    JOIN tags ON post_tags.tag_id = tags.id
-                    WHERE posts.parentid IS NULL AND tags.tagname = %s
-                    ORDER BY comments.postid, comments.creationdate) AS difference_table
-
-            JOIN (SELECT postid, COUNT(*) AS total_comments
-                    FROM comments
-                    GROUP BY postid
-                    HAVING COUNT(*) > %s) sub_table_limited ON difference_table.postid = sub_table_limited.postid
-            )
-            """
-            cur.execute(sql_query, (tagname, count))
-            rows = cur.fetchall()
-            tags_comments = []
-            for row in rows:
-                json = {
-                    "post_id": row[0],
-                    "title": row[1],
-                    "displayname": row[2],
-                    "text": row[3],
-                    "post_created_at": row[4].astimezone(timezone.utc).isoformat(),
-                    "created_at": row[5].astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+00',
-                    "diff": row[6],
-                    "avg": row[7]
-                }
-                tags_comments.append(json)
-
-        elif limit and position is not None:
-            sql_query = """
-            (
-            SELECT * FROM
-                         (SELECT comments.id,
-                                 users.displayname,
-                                 posts.body,
-                                 comments.text,
-                                 comments.score,
-                                 ROW_NUMBER() OVER (PARTITION BY comments.postid ORDER BY comments.creationdate) AS position
+        sql_query = """
+                    (
+                    SELECT difference_table.postid,
+                           difference_table.title,
+                           difference_table.displayname,
+                           difference_table.text,
+                           difference_table.post_created_at,
+                           difference_table.creationdate,
+                           difference_table.time_difference,
+                           AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate) AS avg
+                    FROM
+                        (SELECT comments.postid,
+                                posts.title,
+                                users.displayname,
+                                comments.text,
+                                posts.creationdate AS post_created_at,
+                                comments.creationdate,
+                                (comments.creationdate - LAG(comments.creationdate, 1, posts.creationdate) OVER (PARTITION BY comments.postid ORDER BY comments.creationdate)) AS time_difference
                             FROM comments
                             JOIN posts ON comments.postid = posts.id
                             FULL JOIN users ON comments.userid = users.id
                             JOIN post_tags ON comments.postid = post_tags.post_id
                             JOIN tags ON post_tags.tag_id = tags.id
-                            WHERE posts.parentid IS NULL AND tags.tagname = %s
-                            ORDER BY posts.creationdate) AS ordered_table
-            WHERE position = %s
-            LIMIT %s
-            )
-            """
+                            WHERE posts.parentid IS NULL AND tags.tagname = 'networking'
+                            ORDER BY comments.postid, comments.creationdate) AS difference_table
 
-            cur.execute(sql_query, (tagname, position, limit))
-            rows = cur.fetchall()
-            tags_comments = []
-            for row in rows:
-                json = {
-                    "id": row[0],
-                    "displayname": row[1],
-                    "body": row[2],
-                    "text": row[3],
-                    "score": row[4],
-                    "position": row[5]
-                }
-                tags_comments.append(json)
+                    JOIN (SELECT postid, COUNT(*) AS total_comments
+                            FROM comments
+                            GROUP BY postid
+                            HAVING COUNT(*) > 40) sub_table_limited ON difference_table.postid = sub_table_limited.postid
+                    )
+                    """
+        cur.execute(sql_query, (tagname, count))
+        rows = cur.fetchall()
+        tags_comments = []
+        for row in rows:
+            json = {
+                "post_id": row[0],
+                "title": row[1],
+                "displayname": row[2],
+                "text": row[3],
+                "post_created_at": row[4].astimezone(timezone.utc).isoformat(),
+                "created_at": row[5].astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+00',
+                "diff": row[6],
+                "avg": row[7]
+            }
+            tags_comments.append(json)
+
+        cur.close()
+        return {"items": tags_comments}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/v3/tags/{tagname}/comments/{position}", response_model=dict)
+async def get_posts_comment(tagname: str, position: int = None, limit: int = None):
+    try:
+        cur = conn.cursor()
+        sql_query = """
+                    (
+                    SELECT * FROM
+                                 (SELECT comments.id,
+                                         users.displayname,
+                                         posts.body,
+                                         comments.text,
+                                         comments.score,
+                                         ROW_NUMBER() OVER (PARTITION BY comments.postid ORDER BY comments.creationdate) AS position
+                                    FROM comments
+                                    JOIN posts ON comments.postid = posts.id
+                                    FULL JOIN users ON comments.userid = users.id
+                                    JOIN post_tags ON comments.postid = post_tags.post_id
+                                    JOIN tags ON post_tags.tag_id = tags.id
+                                    WHERE posts.parentid IS NULL AND tags.tagname = %s
+                                    ORDER BY posts.creationdate) AS ordered_table
+                    WHERE position = %s
+                    LIMIT %s
+                    )
+                    """
+
+        cur.execute(sql_query, (tagname, position, limit))
+        rows = cur.fetchall()
+        tags_comments = []
+        for row in rows:
+            json = {
+                "id": row[0],
+                "displayname": row[1],
+                "body": row[2],
+                "text": row[3],
+                "score": row[4],
+                "position": row[5]
+            }
+            tags_comments.append(json)
 
         cur.close()
         return {"items": tags_comments}
