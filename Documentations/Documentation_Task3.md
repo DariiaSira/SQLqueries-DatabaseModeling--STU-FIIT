@@ -157,34 +157,91 @@ SELECT comments.postid,
         ORDER BY comments.postid, comments.creationdate
 ```
 ![img_6.png](images/img_6.png)
+3. Also I use functions for formatting difference and avarage as ir reqires using CONCAT function and CASE close.
+```
+CONCAT(
+        CASE WHEN EXTRACT(days FROM time_difference) > 0 THEN
+                CASE
+                    WHEN EXTRACT(days FROM time_difference) = 1 THEN CONCAT(EXTRACT(days FROM time_difference), ' day ')
+                    ELSE CONCAT(EXTRACT(days FROM time_difference), ' days ')
+                END
+            ELSE ''
+        END,
+        TO_CHAR(time_difference, 'HH24:MI:SS.US')
+       ) AS formatted_time_difference,
+    CONCAT(
+        CASE
+            WHEN EXTRACT(days FROM avg) > 0 THEN
+                CASE
+                    WHEN EXTRACT(days FROM avg) = 1 THEN CONCAT(EXTRACT(days FROM avg), ' day ')
+                    ELSE CONCAT(EXTRACT(days FROM avg), ' days ')
+                END
+            ELSE ''
+        END,
+        TO_CHAR(avg, 'HH24:MI:SS.US')
+    ) AS formatted_avg
+```
+![img.png](img.png)
 3. The outermost SELECT statement selects all columns from the difference_table subquery and calculates the average time difference over each partition of posts. The AVG window function is used with the OVER clause to calculate the average time difference over each partition, which is partitioned by postid and ordered by the creation date of the comments.
 See code in main SQL Request and example of output in HTTP call example:
 
 **SQL Request:**
 ```
-SELECT *,
-                AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate) AS avg
-            FROM
-                (SELECT comments.postid,
-                        posts.title,
-                        users.displayname,
-                        comments.text,
-                        posts.creationdate AS post_created_at,
-                        comments.creationdate,
-                        EXTRACT(EPOCH FROM (comments.creationdate - LAG(comments.creationdate) OVER (PARTITION BY comments.postid ORDER BY comments.creationdate))) AS time_difference
-                    FROM comments
-                    JOIN posts ON comments.postid = posts.id
-                    FULL JOIN users ON comments.userid = users.id
-                    JOIN post_tags ON comments.postid = post_tags.post_id
-                    JOIN tags ON post_tags.tag_id = tags.id
-                    WHERE posts.parentid IS NULL AND tags.tagname = %s
-                    ORDER BY comments.postid, comments.creationdate) AS difference_table
+SELECT formatted.postid,
+       formatted.title,
+       formatted.displayname,
+       formatted.text,
+       formatted.post_created_at,
+       formatted.creationdate,
+       CONCAT(
+        CASE WHEN EXTRACT(days FROM time_difference) > 0 THEN
+                CASE
+                    WHEN EXTRACT(days FROM time_difference) = 1 THEN CONCAT(EXTRACT(days FROM time_difference), ' day ')
+                    ELSE CONCAT(EXTRACT(days FROM time_difference), ' days ')
+                END
+            ELSE ''
+        END,
+        TO_CHAR(time_difference, 'HH24:MI:SS.US')
+       ) AS formatted_time_difference,
+    CONCAT(
+        CASE
+            WHEN EXTRACT(days FROM avg) > 0 THEN
+                CASE
+                    WHEN EXTRACT(days FROM avg) = 1 THEN CONCAT(EXTRACT(days FROM avg), ' day ')
+                    ELSE CONCAT(EXTRACT(days FROM avg), ' days ')
+                END
+            ELSE ''
+        END,
+        TO_CHAR(avg, 'HH24:MI:SS.US')
+    ) AS formatted_avg
+FROM (SELECT difference_table.postid,
+             difference_table.title,
+             difference_table.displayname,
+             difference_table.text,
+             difference_table.post_created_at,
+             difference_table.creationdate,
+             time_difference,
+             AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate) AS avg
+    FROM
+        (SELECT comments.postid,
+                posts.title,
+                users.displayname,
+                comments.text,
+                posts.creationdate AS post_created_at,
+                comments.creationdate,
+                (comments.creationdate - LAG(comments.creationdate, 1, posts.creationdate) OVER (PARTITION BY comments.postid ORDER BY comments.creationdate)) AS time_difference
+            FROM comments
+            JOIN posts ON comments.postid = posts.id
+            FULL JOIN users ON comments.userid = users.id
+            JOIN post_tags ON comments.postid = post_tags.post_id
+            JOIN tags ON post_tags.tag_id = tags.id
+            WHERE posts.parentid IS NULL AND tags.tagname = 'networking'
+            ORDER BY comments.postid, comments.creationdate) AS difference_table
 
-            JOIN (SELECT postid, COUNT(*) AS total_comments
-                    FROM comments
-                    GROUP BY postid
-                    HAVING COUNT(*) > %s) sub_table_limited ON difference_table.postid = sub_table_limited.postid
-
+    JOIN (SELECT postid, COUNT(*) AS total_comments
+            FROM comments
+            GROUP BY postid
+            HAVING COUNT(*) > 40) sub_table_limited ON difference_table.postid = sub_table_limited.postid) AS formatted;
 ```
 
 **HTTP end-point call example** for _tag=linux_ and _count=40_: http://127.0.0.1:8000/v3/tags/networking/comments/?count=40
@@ -196,21 +253,32 @@ SELECT *,
       "title": "Did I just get hacked?",
       "displayname": "Jonno",
       "text": "Yeah that doesn't look too good. I'm not an expert in Linux by any means, but somethings definitely tried to execute on there. I'm not quite sure how though as it looks like it attempted to log in as root and failed. Are there any other logs in your auth.log? Any other means of remote admin? I've seen Mac's with VNC server enabled get hacked before via that, although this looks like an SSH attempt. Looks like the IPs it was downloading from are hosted in China somewhere.",
-      "post_created_at": "2016-02-01T10:21:48.690000+00:00",
+      "post_created_at": "2016-02-01T10:21:48.690+00",
       "created_at": "2016-02-01T10:25:02.610+00",
-      "diff": null,
-      "avg": 1034137
+      "diff": "00:03:13.92",
+      "avg": "00:03:13.92"
     },
     {
       "post_id": 1034137,
       "title": "Did I just get hacked?",
       "displayname": "David Schwartz",
       "text": "The attack actually came from China.",
-      "post_created_at": "2016-02-01T10:21:48.690000+00:00",
+      "post_created_at": "2016-02-01T10:21:48.690+00",
       "created_at": "2016-02-01T10:30:45.310+00",
-      "diff": "342.700000",
-      "avg": 1034137
-    }
+      "diff": "00:05:42.7",
+      "avg": "00:04:28.31"
+    },
+    ...
+    {
+      "post_id": 1034137,
+      "title": "Did I just get hacked?",
+      "displayname": "Tim G",
+      "text": "Thanks very much for the fascinating read.  I found that the payloads are no longer available for download.  Where can a poor student with minimal connections (yet!) find them for analysis?",
+      "post_created_at": "2016-02-01T10:21:48.690+00",
+      "created_at": "2016-02-06T22:06:13.817+00",
+      "diff": "2 days 06:53:35.58",
+      "avg": "03:17:36.628175"
+    },
     ...
 ```
 

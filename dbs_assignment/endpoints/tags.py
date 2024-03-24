@@ -72,13 +72,27 @@ async def get_tags_count(tagname: str, count: int = None):
                            formatted.post_created_at,
                            formatted.creationdate,
                            CONCAT(
-                            CASE WHEN EXTRACT(days FROM time_difference) > 0 THEN CONCAT(EXTRACT(days FROM time_difference), ' days ') ELSE '' END,
-                            TO_CHAR(time_difference, 'HH24:MI:SS.US')
-                           ) AS formatted_time_difference,
-                        CONCAT(
-                            CASE WHEN EXTRACT(days FROM avg) > 0 THEN CONCAT(EXTRACT(days FROM avg), ' days ') ELSE '' END,
-                            TO_CHAR(avg, 'HH24:MI:SS.US')
-                        ) AS formatted_avg
+                                CASE WHEN EXTRACT(days FROM time_difference) > 0 THEN
+                                        CASE
+                                            WHEN EXTRACT(days FROM time_difference) = 1 THEN CONCAT(EXTRACT(days FROM time_difference), ' day ')
+                                            ELSE CONCAT(EXTRACT(days FROM time_difference), ' days ')
+                                        END
+                                    ELSE ''
+                                END,
+                                TO_CHAR(time_difference, 'HH24:MI:SS.US')
+                            ) AS formatted_time_difference,
+                           CONCAT(
+                                CASE
+                                    WHEN EXTRACT(days FROM avg) > 0 THEN
+                                        CASE
+                                            WHEN EXTRACT(days FROM avg) = 1 THEN CONCAT(EXTRACT(days FROM avg), ' day ')
+                                            ELSE CONCAT(EXTRACT(days FROM avg), ' days ')
+                                        END
+                                    ELSE ''
+                                END,
+                                TO_CHAR(avg, 'HH24:MI:SS.US')
+                            ) AS formatted_avg
+
                     FROM (SELECT difference_table.postid,
                                  difference_table.title,
                                  difference_table.displayname,
