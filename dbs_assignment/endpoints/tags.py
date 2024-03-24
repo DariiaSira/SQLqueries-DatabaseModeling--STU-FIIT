@@ -65,35 +65,48 @@ async def get_tags_count(tagname: str, count: int = None):
         cur = conn.cursor()
         sql_query = """
                     (
-                    SELECT difference_table.postid,
-                           difference_table.title,
-                           difference_table.displayname,
-                           difference_table.text,
-                           difference_table.post_created_at,
-                           difference_table.creationdate,
-                           TO_CHAR(time_difference, 'HH24:MI:SS.MS') AS time_difference,
-                           TO_CHAR(AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate), 'HH24:MI:SS.US') AS avg
+                    SELECT formatted.postid,
+                           formatted.title,
+                           formatted.displayname,
+                           formatted.text,
+                           formatted.post_created_at,
+                           formatted.creationdate,
+                           CONCAT(
+                            CASE WHEN EXTRACT(days FROM time_difference) > 0 THEN CONCAT(EXTRACT(days FROM time_difference), ' days ') ELSE '' END,
+                            TO_CHAR(time_difference, 'HH24:MI:SS.US')
+                           ) AS formatted_time_difference,
+                        CONCAT(
+                            CASE WHEN EXTRACT(days FROM avg) > 0 THEN CONCAT(EXTRACT(days FROM avg), ' days ') ELSE '' END,
+                            TO_CHAR(avg, 'HH24:MI:SS.US')
+                        ) AS formatted_avg
+                    FROM (SELECT difference_table.postid,
+                                 difference_table.title,
+                                 difference_table.displayname,
+                                 difference_table.text,
+                                 difference_table.post_created_at,
+                                 difference_table.creationdate,
+                                 time_difference,
+                                 AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate) AS avg
+                        FROM
+                            (SELECT comments.postid,
+                                    posts.title,
+                                    users.displayname,
+                                    comments.text,
+                                    posts.creationdate AS post_created_at,
+                                    comments.creationdate,
+                                    (comments.creationdate - LAG(comments.creationdate, 1, posts.creationdate) OVER (PARTITION BY comments.postid ORDER BY comments.creationdate)) AS time_difference
+                                FROM comments
+                                JOIN posts ON comments.postid = posts.id
+                                FULL JOIN users ON comments.userid = users.id
+                                JOIN post_tags ON comments.postid = post_tags.post_id
+                                JOIN tags ON post_tags.tag_id = tags.id
+                                WHERE posts.parentid IS NULL AND tags.tagname = 'networking'
+                                ORDER BY comments.postid, comments.creationdate) AS difference_table
 
-                    FROM
-                        (SELECT comments.postid,
-                                posts.title,
-                                users.displayname,
-                                comments.text,
-                                posts.creationdate AS post_created_at,
-                                comments.creationdate,
-                                (comments.creationdate - LAG(comments.creationdate, 1, posts.creationdate) OVER (PARTITION BY comments.postid ORDER BY comments.creationdate)) AS time_difference
-                            FROM comments
-                            JOIN posts ON comments.postid = posts.id
-                            FULL JOIN users ON comments.userid = users.id
-                            JOIN post_tags ON comments.postid = post_tags.post_id
-                            JOIN tags ON post_tags.tag_id = tags.id
-                            WHERE posts.parentid IS NULL AND tags.tagname = 'networking'
-                            ORDER BY comments.postid, comments.creationdate) AS difference_table
-
-                    JOIN (SELECT postid, COUNT(*) AS total_comments
-                            FROM comments
-                            GROUP BY postid
-                            HAVING COUNT(*) > 40) sub_table_limited ON difference_table.postid = sub_table_limited.postid
+                        JOIN (SELECT postid, COUNT(*) AS total_comments
+                                FROM comments
+                                GROUP BY postid
+                                HAVING COUNT(*) > 40) sub_table_limited ON difference_table.postid = sub_table_limited.postid) AS formatted
                     )
                     """
         cur.execute(sql_query, (tagname, count))
