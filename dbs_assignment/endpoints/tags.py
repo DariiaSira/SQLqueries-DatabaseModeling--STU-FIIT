@@ -71,8 +71,9 @@ async def get_tags_count(tagname: str, count: int = None):
                            difference_table.text,
                            difference_table.post_created_at,
                            difference_table.creationdate,
-                           difference_table.time_difference,
-                           AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate) AS avg
+                           TO_CHAR(time_difference, 'HH24:MI:SS.MS') AS time_difference,
+                           TO_CHAR(AVG(time_difference) OVER (PARTITION BY difference_table.postid ORDER BY difference_table.creationdate), 'HH24:MI:SS.US') AS avg
+
                     FROM
                         (SELECT comments.postid,
                                 posts.title,
@@ -104,10 +105,10 @@ async def get_tags_count(tagname: str, count: int = None):
                 "title": row[1],
                 "displayname": row[2],
                 "text": row[3],
-                "post_created_at": row[4].astimezone(timezone.utc).isoformat(),
+                "post_created_at": row[4].astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+00',
                 "created_at": row[5].astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+00',
-                "diff": row[6],
-                "avg": row[7]
+                "diff": row[6][:10] + row[6][10:].rstrip("0"),
+                "avg": row[7][:10] + row[7][10:].rstrip("0"),
             }
             tags_comments.append(json)
 
