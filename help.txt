@@ -1,0 +1,45 @@
+// Проверьте состояние контейнера
+docker ps -a
+
+// Подключитесь к контейнеру
+docker exec -it dbs24-binder-str16-dariiasira_container /bin/bash
+
+// Остановите контейнер
+docker stop dbs24-binder-str16-dariiasira_container
+
+// Удалите контейнер
+docker rm dbs24-binder-str16-dariiasira_container
+
+// Пересоздание образа Docker
+docker build -t dbs24-binder-str16-dariiasira .
+
+// Запуск контейнера с новым именем образа  [ --> container ID]
+docker run -d --name dbs24-binder-str16-dariiasira_container -p 8000:8000 dbs24-binder-str16-dariiasira
+
+
+
+// -- GitHub.1
+
+// Коммит изменений
+git add .
+git commit -m ""
+
+
+// Получите последнюю версию из удаленного репозитория
+git pull origin main
+
+// Загрузите изменения на GitHub
+git push origin main
+
+
+// -- GitHub.2
+
+1. Git -> Release -> Tag [Draft a new Release] 
+2. Actions: pend for workflow
+3. Packages: copy image
+
+
+
+
+uvicorn dbs_assignment.__main__:app --reload
+
